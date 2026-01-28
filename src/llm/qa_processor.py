@@ -1,8 +1,7 @@
-import os
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.chat_models import init_chat_model
 from src.database.vector_store import VectorStoreManager
 from src.utils.logger import get_logger
+from src.utils.config import get_api_key
 import re
 
 
@@ -19,8 +18,20 @@ class QAProcessor:
         logger.info("初始化问答处理器")
         
         try:
-            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
-            logger.debug("LLM模型初始化成功")
+            # 获取 DeepSeek API 密钥
+            api_key = get_api_key()
+            if not api_key:
+                raise ValueError("DeepSeek API密钥未设置")
+            
+            # 使用 DeepSeek 模型，显式传递 API 密钥和基础 URL
+            self.llm = init_chat_model(
+                "deepseek-chat",
+                model_provider="deepseek", 
+                temperature=0.1,  # 匹配原始温度设置
+                api_key=api_key,
+                base_url="https://api.deepseek.com"
+            )
+            logger.debug("DeepSeek LLM模型初始化成功")
         except Exception as e:
             logger.error(f"LLM模型初始化失败: {e}")
             raise
@@ -98,11 +109,13 @@ class QAProcessor:
         """
         Determine if the input is a real question
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一个问题识别助手。请判断输入是否为提问句。"),
-            ("human", f"判断以下句子是否为提问句：\n\n{question}\n\n请回答：是 或 否")
-        ])
-        
+        prompt = f"""你是一个问题识别助手。请判断输入是否为提问句。
+
+判断以下句子是否为提问句：
+
+{question}
+
+请回答：是 或 否"""
         chain = prompt | self.llm
         response = chain.invoke({})
         
@@ -112,11 +125,13 @@ class QAProcessor:
         """
         Determine if the question is a calculation problem
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一个问题分类助手。请判断输入是否为数学计算问题。"),
-            ("human", f"判断以下问题是否为数学计算问题：\n\n{question}\n\n请回答：是 或 否")
-        ])
-        
+        prompt = f"""你是一个问题分类助手。请判断输入是否为数学计算问题。
+
+判断以下问题是否为数学计算问题：
+
+{question}
+
+请回答：是 或 否"""
         chain = prompt | self.llm
         response = chain.invoke({})
         
@@ -126,11 +141,9 @@ class QAProcessor:
         """
         Handle chitchat responses
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一个友好的聊天助手。请以轻松友好的方式回应用户的非问题性话语。"),
-            ("human", f"请友好地回应：{question}")
-        ])
-        
+        prompt = f"""你是一个友好的聊天助手。请以轻松友好的方式回应用户的非问题性话语。
+
+请友好地回应：{question}"""
         chain = prompt | self.llm
         response = chain.invoke({})
         

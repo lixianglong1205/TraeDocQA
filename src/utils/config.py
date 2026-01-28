@@ -25,7 +25,7 @@ def load_env_vars():
     logger.info("环境变量加载完成")
     
     # 确保必需的环境变量已设置
-    required_vars = ['OPENAI_API_KEY']
+    required_vars = ['DEEPSEEK_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
@@ -45,14 +45,14 @@ def load_env_vars():
 
 def get_api_key():
     """
-    Get the OpenAI API key from environment
+    Get the DeepSeek API key from environment
     """
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv('DEEPSEEK_API_KEY')
     
     if api_key:
         # 记录API密钥的存在但不记录实际值
-        logger.debug("成功获取OpenAI API密钥")
+        logger.debug("成功获取DeepSeek API密钥")
         return api_key
     else:
-        logger.warning("未找到OpenAI API密钥")
+        logger.warning("未找到DeepSeek API密钥")
         return None
