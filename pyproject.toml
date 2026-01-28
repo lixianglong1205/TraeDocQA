@@ -5,6 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "chardet>=5.2.0",
     "langchain>=1.2.7",
+    "langchain-chroma>=1.1.0",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.1.7",
+    "pypdf>=6.6.2",
+    "python-dotenv>=1.2.1",
     "streamlit>=1.53.1",
+    "tiktoken>=0.12.0",
 ]
