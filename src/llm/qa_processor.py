@@ -1,4 +1,5 @@
 from langchain.chat_models import init_chat_model
+from langchain_core.prompts import ChatPromptTemplate
 from src.database.vector_store import VectorStoreManager
 from src.utils.logger import get_logger
 from src.utils.config import get_api_key
@@ -109,15 +110,15 @@ class QAProcessor:
         """
         Determine if the input is a real question
         """
-        prompt = f"""你是一个问题识别助手。请判断输入是否为提问句。
+        prompt = ChatPromptTemplate.from_template("""你是一个问题识别助手。请判断输入是否为提问句。
 
 判断以下句子是否为提问句：
 
 {question}
 
-请回答：是 或 否"""
+请回答：是 或 否""")
         chain = prompt | self.llm
-        response = chain.invoke({})
+        response = chain.invoke({"question": question})
         
         return "是" in response.content
     
@@ -125,15 +126,15 @@ class QAProcessor:
         """
         Determine if the question is a calculation problem
         """
-        prompt = f"""你是一个问题分类助手。请判断输入是否为数学计算问题。
+        prompt = ChatPromptTemplate.from_template("""你是一个问题分类助手。请判断输入是否为数学计算问题。
 
 判断以下问题是否为数学计算问题：
 
 {question}
 
-请回答：是 或 否"""
+请回答：是 或 否""")
         chain = prompt | self.llm
-        response = chain.invoke({})
+        response = chain.invoke({"question": question})
         
         return "是" in response.content
     
@@ -141,11 +142,11 @@ class QAProcessor:
         """
         Handle chitchat responses
         """
-        prompt = f"""你是一个友好的聊天助手。请以轻松友好的方式回应用户的非问题性话语。
+        prompt = ChatPromptTemplate.from_template("""你是一个友好的聊天助手。请以轻松友好的方式回应用户的非问题性话语。
 
-请友好地回应：{question}"""
+请友好地回应：{question}""")
         chain = prompt | self.llm
-        response = chain.invoke({})
+        response = chain.invoke({"question": question})
         
         return response.content
     
