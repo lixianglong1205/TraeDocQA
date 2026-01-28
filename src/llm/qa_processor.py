@@ -1,8 +1,13 @@
 import os
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from database.vector_store import VectorStoreManager
+from src.database.vector_store import VectorStoreManager
+from src.utils.logger import get_logger
 import re
+
+
+# 设置日志
+logger = get_logger("llm.qa_processor")
 
 
 class QAProcessor:
@@ -11,49 +16,83 @@ class QAProcessor:
     """
     
     def __init__(self):
-        self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+        logger.info("初始化问答处理器")
+        
+        try:
+            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+            logger.debug("LLM模型初始化成功")
+        except Exception as e:
+            logger.error(f"LLM模型初始化失败: {e}")
+            raise
+            
         # We'll need to pass the vector store instance or connect to a shared one
         # For now, we'll use a global reference or pass it as needed
         self.vector_store = None  # Will be set externally
+        logger.debug("问答处理器初始化完成")
     
     def set_vector_store(self, vector_store: VectorStoreManager):
         """Set the vector store instance to use"""
+        logger.info("设置向量存储实例")
         self.vector_store = vector_store
     
     def process_question(self, question: str) -> str:
         """
         Process a question through the complete pipeline
         """
-        # Step 1: Question identification - check if it's a real question
-        is_question = self._is_real_question(question)
-        if not is_question:
-            return self._handle_chitchat(question)
+        logger.info(f"开始处理问题: {question}")
         
-        # Step 2: Intent recognition - check if it's a calculation question
-        is_calculation = self._is_calculation_question(question)
-        if is_calculation:
-            # TODO 计算器用LLM来抽取计算式子, 然后调计算器来解决.
-            return self._handle_calculation(question)
-        
-        # Step 3: Semantic retrieval (only if vector store is available)
-        if self.vector_store:
-            retrieved_faqs = self._semantic_retrieval(question)
+        try:
+            # Step 1: Question identification - check if it's a real question
+            logger.debug("步骤1: 问题识别")
+            is_question = self._is_real_question(question)
+            logger.debug(f"问题识别结果: {'是问题' if is_question else '非问题'}")
             
-            if not retrieved_faqs:
-                return "「未找到相关内容」"
+            if not is_question:
+                logger.info("识别为非问题，进入闲聊处理")
+                return self._handle_chitchat(question)
             
-            # Step 4: Relevance filtering
-            relevant_faqs = self._filter_relevant_faqs(question, retrieved_faqs)
+            # Step 2: Intent recognition - check if it's a calculation question
+            logger.debug("步骤2: 意图识别")
+            is_calculation = self._is_calculation_question(question)
+            logger.debug(f"计算问题识别结果: {'是计算问题' if is_calculation else '非计算问题'}")
             
-            if not relevant_faqs:
-                return "「未找到相关内容」"
+            if is_calculation:
+                logger.info("识别为计算问题，进入计算处理")
+                # TODO 计算器用LLM来抽取计算式子, 然后调计算器来解决.
+                return self._handle_calculation(question)
             
-            # Step 5: Answer generation
-            answer = self._generate_answer(question, relevant_faqs)
-            
-            return answer
-        else:
-            return "知识库尚未准备好，请先上传文档。"
+            # Step 3: Semantic retrieval (only if vector store is available)
+            if self.vector_store:
+                logger.debug("步骤3: 语义检索")
+                retrieved_faqs = self._semantic_retrieval(question)
+                logger.debug(f"检索到 {len(retrieved_faqs)} 个FAQ对")
+                
+                if not retrieved_faqs:
+                    logger.info("未检索到相关内容")
+                    return "「未找到相关内容」"
+                
+                # Step 4: Relevance filtering
+                logger.debug("步骤4: 相关性过滤")
+                relevant_faqs = self._filter_relevant_faqs(question, retrieved_faqs)
+                logger.debug(f"过滤后保留 {len(relevant_faqs)} 个相关FAQ对")
+                
+                if not relevant_faqs:
+                    logger.info("过滤后无相关内容")
+                    return "「未找到相关内容」"
+                
+                # Step 5: Answer generation
+                logger.debug("步骤5: 答案生成")
+                answer = self._generate_answer(question, relevant_faqs)
+                logger.info("答案生成完成")
+                
+                return answer
+            else:
+                logger.warning("向量存储未就绪")
+                return "知识库尚未准备好，请先上传文档。"
+                
+        except Exception as e:
+            logger.exception(f"处理问题时发生错误: {e}")
+            return "抱歉，处理问题时出现了错误，请稍后重试。"
     
     def _is_real_question(self, question: str) -> bool:
         """

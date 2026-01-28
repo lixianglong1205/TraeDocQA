@@ -1,8 +1,13 @@
 import tiktoken
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from src.utils.logger import get_logger
 import json
 import re
+
+
+# 设置日志
+logger = get_logger("llm.faq_extractor")
 
 
 class FAQExtractor:
@@ -11,26 +16,46 @@ class FAQExtractor:
     """
     
     def __init__(self):
-        # Using OpenAI-compatible model as proxy for DeepSeek since we don't have direct access
-        # In production, this would be configured for DeepSeek V3.2
-        self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
-        self.enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        logger.info("初始化FAQ提取器")
+        
+        try:
+            # Using OpenAI-compatible model as proxy for DeepSeek since we don't have direct access
+            # In production, this would be configured for DeepSeek V3.2
+            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+            self.enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
+            logger.debug("LLM模型和分词器初始化成功")
+        except Exception as e:
+            logger.error(f"FAQ提取器初始化失败: {e}")
+            raise
+            
         self.window_size = 2000  # 2K tokens
         self.overlap_size = 500  # 500 tokens overlap
+        logger.debug(f"窗口大小: {self.window_size}, 重叠大小: {self.overlap_size}")
     
     def extract_faqs(self, text: str) -> list:
         """
         Extract FAQs using sliding window approach
         """
-        # Split text into windows
-        windows = self._create_sliding_windows(text)
+        logger.info(f"开始提取FAQ，文本长度: {len(text)} 字符")
         
-        all_faqs = []
-        for window in windows:
-            faqs = self._extract_faqs_from_window(window)
-            all_faqs.extend(faqs)
-        
-        return all_faqs
+        try:
+            # Split text into windows
+            windows = self._create_sliding_windows(text)
+            logger.info(f"文本分割为 {len(windows)} 个窗口")
+            
+            all_faqs = []
+            for i, window in enumerate(windows):
+                logger.debug(f"处理第 {i+1}/{len(windows)} 个窗口")
+                faqs = self._extract_faqs_from_window(window)
+                all_faqs.extend(faqs)
+                logger.debug(f"窗口 {i+1} 提取到 {len(faqs)} 个FAQ对")
+            
+            logger.info(f"FAQ提取完成，共提取到 {len(all_faqs)} 个FAQ对")
+            return all_faqs
+            
+        except Exception as e:
+            logger.exception(f"FAQ提取过程中发生错误: {e}")
+            return []
     
     def _create_sliding_windows(self, text: str) -> list:
         """
