@@ -1,3 +1,4 @@
+import os
 import chromadb
 from chromadb.config import Settings
 from langchain_chroma import Chroma
@@ -13,9 +14,8 @@ class VectorStoreManager:
 
     def __init__(self):
         self.embeddings = DashScopeEmbeddings(
-            model="ext-embedding-v1",
-            api_key=get_api_key("DASHS_API_KEY")
-            # dashscope_api_key=get_api_key("DASHS_API_KEY")
+            model="text-embedding-v1",
+            dashscope_api_key=os.getenv("DASHS_API_KEY")
         )
         self.collection_name = "faq_collection_" + str(uuid.uuid4())
         self.vector_store = Chroma(
